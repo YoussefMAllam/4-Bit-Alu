@@ -1,0 +1,155 @@
+module two_and(input a, input b, output y);
+assign y=a&b;
+endmodule
+
+module two_or(input a, input b, output y);
+assign y=a|b;
+endmodule
+
+module three_and(input a, input b, input c, output y);
+assign y=a&b&c;
+endmodule
+
+module four_and(input a, input b, input c,input  d, output y);
+assign y=a&b&c&d;
+endmodule
+
+module two_xor(input a, input b, output y);
+assign y=a^b;
+endmodule
+
+module three_xor(input a, input b, input c, output y);
+assign y=a^b^c;
+endmodule
+
+module two_mux(input a, input b, input select, output y);
+logic f;
+logic s;
+two_and first(select, a,f);
+two_and second(~select, b,s);
+two_or fin(f,s,y);
+endmodule
+
+module four_mux(input a,input b, input c, input d, input s0,input s1, output y);
+logic f;
+logic s;
+two_mux first(d,c,s1,f);
+two_mux second(b,a,s1,s);
+two_mux fin(f,s,s0,y);
+endmodule
+
+module half_adder(input a, input b, output y, output cout);
+two_xor sum(a,b,y);
+two_and carry(a,b,cout);
+endmodule
+
+module full_adder(input a, input b, input cin, output sum, output cout);
+logic halfsum;
+logic halfcout;
+logic extracout;
+half_adder half(a,b,halfsum,halfcout);
+two_xor finsum(halfsum,cin,sum);
+two_and prefin(cin,halfsum,extracout);
+two_or fincout(extracout,halfcout,cout);
+endmodule
+
+module asr(input a0, input a1, input a2, input a3, output y0, output y1, output y2, output y3);
+assign y0=a0;
+two_mux first(1,0,a0,y1);
+two_mux second(1,0,a1,y2);
+two_mux third(1,0,a2,y3);
+endmodule
+
+module one_au(input a, input b, input s0, input s1,output sum, output cout);
+logic two;
+two_mux first(b,~b,s0,two);
+full_adder f(a,two,s1,sum,cout);
+endmodule
+
+module one_lu(input a, input b, input s0, input s1, output y);
+logic addr;
+logic orr;
+logic xorr;
+logic invr;
+two_and aa(a,b,addr);
+two_or bb(a,b,orr);
+two_xor cc(a,b,xorr);
+assign invr = ~b;
+four_mux result(addr,orr,xorr,invr,s0,s1,y);
+endmodule
+
+module four_au(input a0,a1,a2,a3,b0,b1,b2,b3,input s0,input s1,output y0,y1,y2,y3, output v);
+logic c1;
+logic c2;
+logic c3;
+one_au aa(a3,b3,s0,s1,y3,c1);
+one_au bb(a2,b2,s0,c1,y2,c2);
+one_au cc(a1,b1,s0,c2,y1,c3);
+one_au dd(a0,b0,s0,c3,y0,v);
+endmodule
+
+module four_lu(input a0,a1,a2,a3, input b0,b1,b2,b3, input s0,s1,output y0,y1,y2,y3);
+one_lu aa(a0,b0,s0,s1,y0);
+one_lu bb(a1,b1,s0,s1,y1);
+one_lu cc(a2,b2,s0,s1,y2);
+one_lu dd(a3,b3,s0,s1,y3);
+endmodule
+
+
+module alu(input a0,a1,a2,a3, input b0,b1,b2,b3, input s0,s1,s2,s3, output y0,y1,y2,y3, output z,v);
+logic l0,l1,l2,l3;
+logic u0,u1,u2,u3;
+logic v_temp;
+logic al0,al1,al2,al3;
+logic sh0,sh1,sh2,sh3;
+asr gg(a0,a1,a2,a3,sh0,sh1,sh2,sh3);
+four_au aa(a0,a1,a2,a3,b0,b1,b2,b3,s0,s1,u0,u1,u2,u3,v_temp);
+four_lu bb(a0,a1,a2,a3,b0,b1,b2,b3,s0,s1,l0,l1,l2,l3);
+two_mux cc(u0,l0,s2,al0);
+two_mux dd(u1,l1,s2,al1);
+two_mux ee(u2,l2,s2,al2);
+two_mux ff(u3,l3,s2,al3);
+two_mux fin1(sh0,al0,s3,y0);
+two_mux fin2(sh1,al1,s3,y1);
+two_mux fin3(sh2,al2,s3,y2);
+two_mux fin4(sh3,al3,s3,y3);
+four_and fin5(~y0,~y1,~y2,~y3,z);
+four_and fin6(s0,v_temp,s2,~s3,v);
+endmodule
+
+module alu_DUT();
+logic a0=0;
+logic a1=1;
+logic a2=0;
+logic a3=1;
+
+logic b0=1;
+logic b1=1;
+logic b2=0;
+logic b3=1;
+
+logic s0;
+logic s1;
+logic s2;
+logic s3;
+
+reg y0,y1,y2,y3;
+reg z;
+reg v;
+
+initial
+begin
+s0=0;s1=0;s2=0;s3=0;#100; ///AND //Check
+s0=1;s1=0;s2=0;s3=0;#100; //XOR // Check
+s0=0;s1=1;s2=0;s3=0;#100; //OR  // Check
+s0=1;s1=1;s2=0;s3=0;#100; //INV // Check
+s0=1;s1=0;s2=1;s3=0;#100; //A+B //Check
+s0=1;s1=1;s2=1;s3=0;#100; //A+B+1 //Check
+s0=0;s1=0;s2=1;s3=0;#100; //A+B' (A-B-1) //Check
+s0=0;s1=1;s2=1;s3=0;#100; //A+B'+1 (A-B) //Check
+s0=0;s1=0;s2=0;s3=1;#100; //ASR 
+a0=0;a1=0;a2=0;a3=0;
+s0=1;s1=1;s2=1;s3=0;#100; //B+1
+end
+alu f(a0,a1,a2,a3,b0,b1,b2,b3,s0,s1,s2,s3,y0,y1,y2,y3,z,v);
+endmodule
